@@ -102,3 +102,31 @@ def test_failing_case(fix_syspath):
 
     assert "cell B1" in str(exc_info.value)
     assert test_method.__score__ == 0
+
+
+def test_passing_case_with_ref_and_sub_modules(fix_syspath):
+    tests_dir = fix_syspath / "tests"
+    tests_dir.mkdir()
+
+    write_workbook(
+        tests_dir / "ex1_pre_0_reference.xlsx",
+        cells={"F16": "=A1+B1", "F17": "=A2+B2", "F18": "=A3+B3"},
+    )
+    write_workbook(
+        fix_syspath / "ex1_pre_0_kp.xlsx",
+        cells={"F16": "=A1+B1", "F17": "=A2+B2", "F18": "=A3+B3"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            ref_module="tests.ex1_pre_0_reference",
+            sub_module="ex1_pre_0",
+            entries=("F16", "F18"),
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__

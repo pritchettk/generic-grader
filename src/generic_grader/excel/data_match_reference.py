@@ -6,8 +6,9 @@ from parameterized import parameterized
 
 from generic_grader.excel._workbook import (
     load_sheet,
+    resolve_reference_file,
     resolve_sheet_and_range,
-    resolve_single_file,
+    resolve_submission_file,
 )
 from generic_grader.utils.decorators import merge_subtests, weighted
 from generic_grader.utils.docs import get_wrapper
@@ -45,12 +46,8 @@ def build(the_options):
             o = options
             sheet, start_cell, end_cell = resolve_sheet_and_range(o)
 
-            sub_file = resolve_single_file(o.required_files, "submission")
-            reference_file = o.kwargs.get("reference_file")
-            if not reference_file:
-                raise ValueError(
-                    "Excel data comparison requires `kwargs['reference_file']`."
-                )
+            sub_file = resolve_submission_file(o)
+            reference_file = resolve_reference_file(o)
 
             ref_sheet = load_sheet(reference_file, sheet, data_only=True)
             sub_sheet = load_sheet(sub_file, sheet, data_only=True)
