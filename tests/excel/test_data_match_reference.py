@@ -113,7 +113,7 @@ def test_passing_case_with_ref_and_sub_modules(fix_syspath):
         cells={"F16": 1, "F17": 2, "F18": 3, "F19": 4, "F20": 5},
     )
     write_workbook(
-        fix_syspath / "ex1_pre_0_kp.xlsx",
+        fix_syspath / "ex1_pre_0.xlsx",
         cells={"F16": 1, "F17": 2, "F18": 3, "F19": 4, "F20": 5},
     )
 

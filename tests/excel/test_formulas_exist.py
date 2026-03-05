@@ -98,13 +98,38 @@ def test_failing_case(fix_syspath):
 
 def test_passing_case_with_sub_module_only(fix_syspath):
     write_workbook(
-        fix_syspath / "ex1_pre_0_login.xlsx",
+        fix_syspath / "ex1_pre_0.xlsx",
         cells={"F16": "=A1+B1", "F17": "=A2+B2", "F18": "=A3+B3"},
     )
 
     built_class = build(
         Options(
             weight=1,
+            sub_module="ex1_pre_0",
+            entries=("F16", "F18"),
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_exist_0")
+    test_method = built_instance.test_formulas_exist_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_sub_module_resolution_ignores_wildcard_collision(fix_syspath):
+    write_workbook(
+        fix_syspath / "ex1_pre_0.xlsx",
+        cells={"F16": "=A1+B1", "F17": "=A2+B2", "F18": "=A3+B3"},
+    )
+    write_workbook(
+        fix_syspath / "ex1_pre_0_reference.xlsx",
+        cells={"F16": "=A1+B1", "F17": "=A2+B2", "F18": "=A3+B3"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("ex1_pre_0*.xlsx",),
             sub_module="ex1_pre_0",
             entries=("F16", "F18"),
         )
