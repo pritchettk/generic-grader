@@ -48,12 +48,24 @@ typecheck_options = [
         "error": "`entries` must be of type <class 'tuple'>. Got <class 'str'> instead.",
     },
     {
+        "options": {"sheet": 123},
+        "error": "`sheet` must be of type <class 'str'>. Got <class 'int'> instead.",
+    },
+    {
         "options": {"weight": "0"},
         "error": "`weight` must be of type int | float. Got <class 'str'> instead.",
     },
     {
         "options": {"mode": "unknown"},
         "error": "`mode` must be one of 'exactly', 'less than', 'more than', or 'approximately'.",
+    },
+    {
+        "options": {"chart_ratio": 1.2},
+        "error": "`chart_ratio` must be between 0 and 1 inclusive.",
+    },
+    {
+        "options": {"chart_fields": ("title", "bad_field")},
+        "error": "`chart_fields` may only contain 'title', 'x_axis_label', and 'y_axis_label'.",
     },
 ]
 

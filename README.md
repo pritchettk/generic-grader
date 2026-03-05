@@ -54,6 +54,18 @@ pip install generic-grader
    python -m unittest tests/config.py
    ```
 
+### Excel chart metadata checks
+
+Use `generic_grader.excel.chart_metadata_match_reference` to compare chart
+titles and axis labels in a submission workbook against a reference workbook.
+The check uses fuzzy text matching, so labels do not have to be exact.
+
+- Configure the target worksheet with `Options(sheet="Sheet")`.
+- Tune similarity with `Options(chart_ratio=0.8)`.
+- Control compared fields with
+   `Options(chart_fields=("title", "x_axis_label", "y_axis_label"))`.
+- Enforce chart titles with `Options(chart_require_title=True)`.
+
 
 ## Contributing
 

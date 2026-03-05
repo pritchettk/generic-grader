@@ -19,7 +19,7 @@ def doc_func(func, num, param):
     """Return parameterized docstring for formula matching checks."""
 
     o = param.args[0]
-    sheet = o.kwargs.get("sheet", "Sheet")
+    sheet = o.kwargs.get("sheet", o.sheet)
     start_cell, end_cell = o.entries
     return (
         f"Check that formulas in range {start_cell}:{end_cell}"

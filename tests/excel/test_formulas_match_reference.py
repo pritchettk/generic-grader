@@ -22,7 +22,8 @@ def built_class():
         Options(
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
-            kwargs={"sheet": "Sheet", "reference_file": "reference.xlsx"},
+            sheet="Sheet1",
+            kwargs={"reference_file": "reference.xlsx"},
         )
     )
 
@@ -66,7 +67,8 @@ def test_passing_case(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
-            kwargs={"sheet": "Sheet", "reference_file": "reference.xlsx"},
+            sheet="Sheet1",
+            kwargs={"reference_file": "reference.xlsx"},
         )
     )
     built_instance = built_class(methodName="test_formulas_match_reference_0")
@@ -91,7 +93,8 @@ def test_failing_case(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
-            kwargs={"sheet": "Sheet", "reference_file": "reference.xlsx"},
+            sheet="Sheet1",
+            kwargs={"reference_file": "reference.xlsx"},
         )
     )
     built_instance = built_class(methodName="test_formulas_match_reference_0")

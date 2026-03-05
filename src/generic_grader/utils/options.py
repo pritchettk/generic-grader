@@ -55,6 +55,12 @@ class Options:
     # File
     filenames: tuple = ()
 
+    # Excel / Spreadsheet
+    sheet: str = "Sheet1"
+    chart_fields: tuple = ("title", "x_axis_label", "y_axis_label")
+    chart_ratio: float = 0.8
+    chart_require_title: bool = True
+
     # Code
     expected_minimum_depth: int = 1
 
@@ -113,4 +119,13 @@ class Options:
         if self.mode not in ["exactly", "less than", "more than", "approximately"]:
             raise ValueError(
                 "`mode` must be one of 'exactly', 'less than', 'more than', or 'approximately'."
+            )
+        if not 0 <= self.chart_ratio <= 1:
+            raise ValueError("`chart_ratio` must be between 0 and 1 inclusive.")
+        valid_chart_fields = {"title", "x_axis_label", "y_axis_label"}
+        invalid_chart_fields = set(self.chart_fields) - valid_chart_fields
+        if invalid_chart_fields:
+            raise ValueError(
+                "`chart_fields` may only contain 'title', 'x_axis_label', and"
+                " 'y_axis_label'."
             )
