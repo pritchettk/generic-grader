@@ -66,6 +66,27 @@ The check uses fuzzy text matching, so labels do not have to be exact.
    `Options(chart_fields=("title", "x_axis_label", "y_axis_label"))`.
 - Enforce chart titles with `Options(chart_require_title=True)`.
 
+### Excel data series checks
+
+Use `generic_grader.excel.data_series_exists` when you want to verify that a
+reference series appears somewhere in a submission sheet, even if it has moved
+to another row/column orientation.
+
+- Define the reference series with `Options(entries=("A2", "A10"))` (single row
+   or single column only).
+- Search orientation defaults to either row or column; override with
+   `Options(kwargs={"search_orientation": "row"})` or
+   `Options(kwargs={"search_orientation": "column"})`.
+- Control existence leniency with `Options(ratio=...)` (default `1.0`).
+
+Use `generic_grader.excel.data_series_match_reference` when you want a full
+value-by-value match against the reference series at whatever location the
+series is found.
+
+- Supports numeric tolerance via `Options(relative_tolerance=..., absolute_tolerance=...)`.
+- Best practice for separate student score lines is to call these checks once
+   per series you want graded.
+
 
 ## Contributing
 
