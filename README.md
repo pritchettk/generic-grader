@@ -86,6 +86,8 @@ value-by-value match against the reference series at whatever location the
 series is found.
 
 - Supports numeric tolerance via `Options(relative_tolerance=..., absolute_tolerance=...)`.
+- Optionally require formula cells in the matched series with
+   `Options(series_require_formulas=True)`.
 - Best practice for separate student score lines is to call these checks once
    per series you want graded.
 

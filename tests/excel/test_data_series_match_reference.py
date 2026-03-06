@@ -52,6 +52,24 @@ def test_doc_func(built_instance):
     )
 
 
+def test_doc_func_with_formula_requirement():
+    built_class = build(
+        Options(
+            required_files=("submission.xlsx",),
+            entries=("A2", "A5"),
+            sheet="Sheet1",
+            series_require_formulas=True,
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class()
+
+    assert (
+        built_instance.test_data_series_match_reference_0.__doc__
+        == "Check that the data series in range A2:A5 on sheet `Sheet1` exactly matches somewhere in the submission workbook and uses formulas."
+    )
+
+
 def test_passing_relocated_column_case(fix_syspath):
     write_workbook(
         fix_syspath / "reference.xlsx",
@@ -157,4 +175,67 @@ def test_failing_case(fix_syspath):
         test_method()
 
     assert "No exact data series match" in str(exc_info.value)
+    assert test_method.__score__ == 0
+
+
+def test_passing_formula_required_case(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        cells={"A2": "=1+9", "A3": "=10+10", "A4": "=10+20", "A5": "=20+20"},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"D2": "=1+9", "D3": "=10+10", "D4": "=10+20", "D5": "=20+20"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            series_require_formulas=True,
+            required_files=("submission.xlsx",),
+            entries=("A2", "A5"),
+            sheet="Sheet1",
+            kwargs={
+                "reference_file": "reference.xlsx",
+                "search_orientation": "column",
+            },
+        )
+    )
+    built_instance = built_class(methodName="test_data_series_match_reference_0")
+    test_method = built_instance.test_data_series_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_failing_formula_required_case(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"D2": 10, "D3": 20, "D4": 30, "D5": 40},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            series_require_formulas=True,
+            required_files=("submission.xlsx",),
+            entries=("A2", "A5"),
+            sheet="Sheet1",
+            kwargs={
+                "reference_file": "reference.xlsx",
+                "search_orientation": "column",
+            },
+        )
+    )
+    built_instance = built_class(methodName="test_data_series_match_reference_0")
+    test_method = built_instance.test_data_series_match_reference_0
+
+    with pytest.raises(AssertionError) as exc_info:
+        test_method()
+
+    assert "not a formula cell" in str(exc_info.value)
     assert test_method.__score__ == 0
