@@ -79,7 +79,7 @@ to another row/column orientation.
    `Options(kwargs={"search_orientation": "column"})`.
 - Control existence leniency with `Options(ratio=...)` (default `1.0`).
 - Optionally require formula cells in the matched series with
-   `Options(kwargs={"series_require_formulas": True})`.
+   `Options(series_require_formulas=True)`.
 
 Use `generic_grader.excel.data_series_match_reference` when you want a full
 value-by-value match against the reference series at whatever location the

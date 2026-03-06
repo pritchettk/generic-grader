@@ -23,10 +23,7 @@ def doc_func(func, num, param):
     o = param.args[0]
     sheet = o.kwargs.get("sheet", o.sheet)
     start_cell, end_cell = o.entries
-    require_formulas = o.kwargs.get(
-        "series_require_formulas",
-        o.kwargs.get("require_formulas", False),
-    )
+    require_formulas = o.series_require_formulas
     formula_suffix = " and uses formulas" if require_formulas else ""
     return (
         f"Check that the data series in range {start_cell}:{end_cell}"
@@ -74,14 +71,7 @@ def build(the_options):
             ref_sheet = load_sheet(reference_file, sheet, data_only=True)
             sub_sheet = load_sheet(sub_file, sheet, data_only=True)
 
-            require_formulas = o.kwargs.get(
-                "series_require_formulas",
-                o.kwargs.get("require_formulas", False),
-            )
-            if not isinstance(require_formulas, bool):
-                raise ValueError(
-                    "`kwargs['series_require_formulas']` must be a boolean."
-                )
+            require_formulas = o.series_require_formulas
 
             series = extract_series_from_range(ref_sheet, start_cell, end_cell)
             search_orientation = o.kwargs.get("search_orientation", "either")

@@ -173,12 +173,12 @@ def test_passing_formula_required_case(fix_syspath):
     built_class = build(
         Options(
             weight=1,
+            series_require_formulas=True,
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
             sheet="Sheet1",
             kwargs={
                 "reference_file": "reference.xlsx",
-                "series_require_formulas": True,
                 "search_orientation": "column",
             },
         )
@@ -204,12 +204,12 @@ def test_failing_formula_required_case(fix_syspath):
         Options(
             weight=1,
             ratio=0.75,
+            series_require_formulas=True,
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
             sheet="Sheet1",
             kwargs={
                 "reference_file": "reference.xlsx",
-                "series_require_formulas": True,
                 "search_orientation": "column",
             },
         )

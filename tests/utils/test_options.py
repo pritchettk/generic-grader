@@ -67,6 +67,10 @@ typecheck_options = [
         "options": {"chart_fields": ("title", "bad_field")},
         "error": "`chart_fields` may only contain 'title', 'x_axis_label', and 'y_axis_label'.",
     },
+    {
+        "options": {"series_require_formulas": "yes"},
+        "error": "`series_require_formulas` must be of type <class 'bool'>. Got <class 'str'> instead.",
+    },
 ]
 
 
