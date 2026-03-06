@@ -158,3 +158,67 @@ def test_failing_case(fix_syspath):
 
     assert "Could not find data series" in str(exc_info.value)
     assert test_method.__score__ == 0
+
+
+def test_passing_formula_required_case(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        cells={"A2": "=1+9", "A3": "=10+10", "A4": "=10+20", "A5": "=20+20"},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"D2": "=1+9", "D3": "=10+10", "D4": "=10+20", "D5": "=20+20"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A2", "A5"),
+            sheet="Sheet1",
+            kwargs={
+                "reference_file": "reference.xlsx",
+                "series_require_formulas": True,
+                "search_orientation": "column",
+            },
+        )
+    )
+    built_instance = built_class(methodName="test_data_series_exists_0")
+    test_method = built_instance.test_data_series_exists_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_failing_formula_required_case(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        cells={"A2": "=1+9", "A3": "=10+10", "A4": "=10+20", "A5": "=20+20"},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"D2": "=1+9", "D3": "=10+10", "D4": 30, "D5": "=20+20"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            ratio=0.75,
+            required_files=("submission.xlsx",),
+            entries=("A2", "A5"),
+            sheet="Sheet1",
+            kwargs={
+                "reference_file": "reference.xlsx",
+                "series_require_formulas": True,
+                "search_orientation": "column",
+            },
+        )
+    )
+    built_instance = built_class(methodName="test_data_series_exists_0")
+    test_method = built_instance.test_data_series_exists_0
+
+    with pytest.raises(AssertionError) as exc_info:
+        test_method()
+
+    assert "not a formula cell" in str(exc_info.value)
+    assert test_method.__score__ == 0
