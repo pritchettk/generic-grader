@@ -3,11 +3,13 @@
 import unittest
 
 from parameterized import parameterized
+from rapidfuzz.distance.Levenshtein import normalized_similarity
 
 from generic_grader.utils.decorators import weighted
 from generic_grader.utils.docs import get_wrapper, make_call_str, make_line_range
 from generic_grader.utils.options import options_to_params
 from generic_grader.utils.reference_test import reference_test
+from generic_grader.utils.safe_equal import make_diff, safe_assert_equal
 
 
 def doc_func(func, num, param):
@@ -49,37 +51,46 @@ def build(the_options):
             actual = self.student_user.read_log()
             expected = self.ref_user.read_log()
 
-            # Build an error message.
-            #
-            # Considering adding some fuzziness by only requiring a certain
-            # percentage of output to match, but this doesn't work well for very
-            # long output.
             line_range = make_line_range(o.start, o.n_lines)
             call_str = make_call_str(o.obj_name, o.args, o.kwargs)
 
-            message = (
-                # "\n" + "\n".join(
-                #    difflib.ndiff(
-                #        actual.split("\n"),
-                #        expected.split("\n")
-                #    )
-                # )
-                # + "\n\nHint:\n"
-                "\n\nHint:\n"
-                + self.wrapper.fill(
-                    "Your output did not match the expected output."
-                    f"  Double check the formatting of output {line_range}"
-                    f" of your `{o.obj_name}` function when called as `{call_str}`"
-                    + (o.entries and f" with entries={o.entries}." or ".")
-                    + (o.hint and f"  {o.hint}" or "")
-                )
-                + f"{self.student_user.format_log()}"
-            )
+            if o.ratio < 1:
+                # Use rapidfuzz for partial matching (avoids O(n²) difflib
+                # in the ratio calculation).
+                similarity = normalized_similarity(actual, expected)
 
-            self.maxDiff = None
-            self.assertEqual(actual, expected, msg=message)
-            # ratio = difflib.SequenceMatcher(None, actual, expected).ratio() #TODO: Figure out why difflb is taking so long - come up with a test case that takes a long time
-            # self.assertGreaterEqual(ratio, 0.99, msg=message)
+                diff = make_diff(actual, expected)
+
+                message = (
+                    ("\n" + diff if diff else "")
+                    + "\n\nHint:\n"
+                    + self.wrapper.fill(
+                        "Your output is not sufficiently similar to the"
+                        " expected output."
+                        f"  Double check the formatting of output {line_range}"
+                        f" of your `{o.obj_name}` function when called as"
+                        f" `{call_str}`"
+                        + (o.entries and f" with entries={o.entries}." or ".")
+                        + (o.hint and f"  {o.hint}" or "")
+                    )
+                    + f"{self.student_user.format_log()}"
+                )
+                self.assertGreaterEqual(similarity, o.ratio, msg=message)
+            else:
+                # Exact match (default).
+                message = (
+                    "\n\nHint:\n"
+                    + self.wrapper.fill(
+                        "Your output did not match the expected output."
+                        f"  Double check the formatting of output {line_range}"
+                        f" of your `{o.obj_name}` function when called as"
+                        f" `{call_str}`"
+                        + (o.entries and f" with entries={o.entries}." or ".")
+                        + (o.hint and f"  {o.hint}" or "")
+                    )
+                    + f"{self.student_user.format_log()}"
+                )
+                safe_assert_equal(self, actual, expected, msg=message)
 
             self.set_score(self, o.weight)  # Full credit
 
