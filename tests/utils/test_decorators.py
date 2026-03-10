@@ -3,7 +3,7 @@ import unittest
 import pytest
 from parameterized import param, parameterized
 
-from generic_grader.utils.decorators import weighted
+from generic_grader.utils.decorators import merge_subtests, weighted
 from generic_grader.utils.options import Options
 
 # Check weight attribute of method with:
@@ -99,3 +99,34 @@ def test_weighted_decorator_set_score():
 
 
 # TODO: Check results.json after running gradescope test runner.
+
+
+def test_merge_subtests_default_true():
+    """Test that merge_subtests defaults to True."""
+
+    @merge_subtests()
+    def test_func():
+        pass
+
+    assert hasattr(test_func, "__merge_subtests__")
+    assert test_func.__merge_subtests__ is True
+
+
+@pytest.mark.parametrize(
+    "input_value, expected",
+    [
+        (True, True),
+        (False, False),
+        (1, True),
+        (0, False),
+        (None, False),
+    ],
+)
+def test_merge_subtests_value(input_value, expected):
+    """Test that merge_subtests stores a boolean value."""
+
+    @merge_subtests(input_value)
+    def test_func():
+        pass
+
+    assert test_func.__merge_subtests__ is expected

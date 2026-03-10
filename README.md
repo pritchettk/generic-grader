@@ -54,6 +54,43 @@ pip install generic-grader
    python -m unittest tests/config.py
    ```
 
+### Excel chart metadata checks
+
+Use `generic_grader.excel.chart_metadata_match_reference` to compare chart
+titles and axis labels in a submission workbook against a reference workbook.
+The check uses fuzzy text matching, so labels do not have to be exact.
+
+- Configure the target worksheet with `Options(sheet="Sheet")`.
+- Tune similarity with `Options(chart_ratio=0.8)`.
+- Control compared fields with
+   `Options(chart_fields=("title", "x_axis_label", "y_axis_label"))`.
+- Enforce chart titles with `Options(chart_require_title=True)`.
+
+### Excel data series checks
+
+Use `generic_grader.excel.data_series_exists` when you want to verify that a
+reference series appears somewhere in a submission sheet, even if it has moved
+to another row/column orientation.
+
+- Define the reference series with `Options(entries=("A2", "A10"))` (single row
+   or single column only).
+- Search orientation defaults to either row or column; override with
+   `Options(kwargs={"search_orientation": "row"})` or
+   `Options(kwargs={"search_orientation": "column"})`.
+- Control existence leniency with `Options(ratio=...)` (default `1.0`).
+- Optionally require formula cells in the matched series with
+   `Options(series_require_formulas=True)`.
+
+Use `generic_grader.excel.data_series_match_reference` when you want a full
+value-by-value match against the reference series at whatever location the
+series is found.
+
+- Supports numeric tolerance via `Options(relative_tolerance=..., absolute_tolerance=...)`.
+- Optionally require formula cells in the matched series with
+   `Options(series_require_formulas=True)`.
+- Best practice for separate student score lines is to call these checks once
+   per series you want graded.
+
 
 ## Contributing
 
