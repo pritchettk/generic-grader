@@ -85,7 +85,8 @@ class Options:
 
     def __attrs_post_init__(self):
         """Check that the attributes are of the correct type."""
-        for attr in self.__annotations__:
+        annotations = type(self).__annotations__
+        for attr in annotations:
             if attr == "init":
                 expected_type = (Callable, type(None))
                 attr_type = f"<class 'function'> or {type(None)}. "
@@ -96,8 +97,8 @@ class Options:
                 expected_type = list
                 attr_type = f"{list}. "
             else:
-                expected_type = self.__annotations__[attr]
-                attr_type = f"{self.__annotations__[attr]}. "
+                expected_type = annotations[attr]
+                attr_type = f"{annotations[attr]}. "
             if not isinstance(getattr(self, attr), expected_type):
                 raise ValueError(
                     f"`{attr}` must be of type "
