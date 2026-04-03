@@ -71,6 +71,10 @@ typecheck_options = [
         "options": {"series_require_formulas": "yes"},
         "error": "`series_require_formulas` must be of type <class 'bool'>. Got <class 'str'> instead.",
     },
+    {
+        "options": {"range_matches_reference": "yes"},
+        "error": "`range_matches_reference` must be of type <class 'bool'>. Got <class 'str'> instead.",
+    },
 ]
 
 

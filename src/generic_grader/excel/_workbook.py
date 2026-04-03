@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
+from openpyxl.utils.cell import range_boundaries
+
 from generic_grader.utils.options import Options
 
 from openpyxl import load_workbook
@@ -51,16 +53,52 @@ def resolve_sheet_and_range(options):
             " e.g. ('A1', 'C4')."
         )
 
-    sheet = options.kwargs.get("sheet", options.sheet)
+    sheet = options.kwargs.get("sheet") or options.sheet or None
     start_cell, end_cell = options.entries
     return sheet, start_cell, end_cell
 
 
-def load_sheet(path: str, sheet: str, data_only: bool):
+def load_sheet(path: str, sheet: str | None, data_only: bool):
     """Load a workbook and return the requested sheet."""
 
     workbook = load_workbook(filename=path, data_only=data_only)
+    if not sheet:
+        if not workbook.worksheets:
+            raise ValueError(f"Workbook at '{path}' has no worksheets.")
+        return workbook.worksheets[0]
     return workbook[sheet]
+
+
+def range_shape(start_cell: str, end_cell: str) -> tuple[int, int]:
+    """Return (height, width) for an Excel range."""
+
+    min_col, min_row, max_col, max_row = range_boundaries(f"{start_cell}:{end_cell}")
+    return max_row - min_row + 1, max_col - min_col + 1
+
+
+def iter_rect_windows(sheet, height: int, width: int):
+    """Yield top-left row/column for each in-sheet rectangular window."""
+
+    if height <= 0 or width <= 0:
+        return
+
+    max_row = sheet.max_row
+    max_col = sheet.max_column
+    if height > max_row or width > max_col:
+        return
+
+    for row in range(1, max_row - height + 2):
+        for col in range(1, max_col - width + 2):
+            yield row, col
+
+
+def read_rect_values(sheet, start_row: int, start_col: int, height: int, width: int):
+    """Read a rectangular block of values from a worksheet."""
+
+    return [
+        [sheet.cell(start_row + row, start_col + col).value for col in range(width)]
+        for row in range(height)
+    ]
 
 
 def _rels_path_for_source(source_path: str) -> str:

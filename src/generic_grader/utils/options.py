@@ -57,11 +57,12 @@ class Options:
     filenames: tuple = ()
 
     # Excel / Spreadsheet
-    sheet: str = "Sheet1"
+    sheet: str = ""
     chart_fields: tuple = ("title", "x_axis_label", "y_axis_label")
     chart_ratio: float = 0.8
     chart_require_title: bool = True
     series_require_formulas: bool = False
+    range_matches_reference: bool = True
 
     # Code
     expected_minimum_depth: int = 1

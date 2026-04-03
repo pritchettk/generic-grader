@@ -1,6 +1,7 @@
-"""Test that a reference data series matches somewhere in a submission workbook."""
+"""Test that a reference data series matches in-range or somewhere in submission."""
 
 import unittest
+from math import isclose
 
 from openpyxl.utils.cell import range_boundaries
 from parameterized import parameterized
@@ -25,13 +26,19 @@ def doc_func(func, num, param):
     """Return parameterized docstring for data series match checks."""
 
     o = param.args[0]
-    sheet = o.kwargs.get("sheet", o.sheet)
+    sheet = o.kwargs.get("sheet") or o.sheet or "<first worksheet>"
     start_cell, end_cell = o.entries
     require_formulas = o.series_require_formulas
+    range_matches_reference = o.range_matches_reference
     formula_suffix = " and uses formulas" if require_formulas else ""
+    location_clause = (
+        "matches the reference values at the same cell locations"
+        if range_matches_reference
+        else "matches somewhere in the submission workbook"
+    )
     return (
         f"Check that the data series in range {start_cell}:{end_cell}"
-        f" on sheet `{sheet}` exactly matches somewhere in the submission workbook"
+        f" on sheet `{sheet}` exactly {location_clause}"
         f"{formula_suffix}."
     )
 
@@ -50,6 +57,38 @@ def _iter_series_coordinates(match: dict):
         yield row, min_col
 
 
+def _series_ratio(values_a, values_b, relative_tolerance: float, absolute_tolerance: float):
+    if len(values_a) != len(values_b):
+        return 0.0
+
+    if not values_b:
+        return 1.0
+
+    n_matches = 0
+    for value_a, value_b in zip(values_a, values_b, strict=True):
+        if isinstance(value_a, str):
+            value_a = value_a.strip().casefold()
+        if isinstance(value_b, str):
+            value_b = value_b.strip().casefold()
+
+        if isinstance(value_a, bool) or isinstance(value_b, bool):
+            is_match = value_a == value_b
+        elif isinstance(value_a, (int, float)) and isinstance(value_b, (int, float)):
+            is_match = isclose(
+                float(value_a),
+                float(value_b),
+                rel_tol=relative_tolerance,
+                abs_tol=absolute_tolerance,
+            )
+        else:
+            is_match = value_a == value_b
+
+        if is_match:
+            n_matches += 1
+
+    return n_matches / len(values_b)
+
+
 def build(the_options):
     """Create a class for data series matching checks."""
 
@@ -64,7 +103,7 @@ def build(the_options):
         @merge_subtests()
         @weighted
         def test_data_series_match_reference(self, options):
-            """Check that reference data series exactly matches submission."""
+            """Check that reference data series matches in the configured mode."""
 
             o = options
             sheet, start_cell, end_cell = resolve_sheet_and_range(o)
@@ -74,26 +113,78 @@ def build(the_options):
 
             ref_sheet = load_sheet(reference_file, sheet, data_only=True)
             sub_sheet = load_sheet(sub_file, sheet, data_only=True)
+            sheet = ref_sheet.title
 
             series = extract_series_from_range(ref_sheet, start_cell, end_cell)
             search_orientation = o.kwargs.get("search_orientation", "either")
             require_formulas = o.series_require_formulas
+            range_matches_reference = o.range_matches_reference
 
             if require_formulas and all(value is None for value in series["values"]):
                 ref_sheet_formulas = load_sheet(reference_file, sheet, data_only=False)
-                sub_sheet = load_sheet(sub_file, sheet, data_only=False)
                 series = extract_series_from_range(ref_sheet_formulas, start_cell, end_cell)
 
-            exact_match = find_exact_series_window(
-                sub_sheet,
-                series["values"],
-                search_orientation,
-                o.relative_tolerance,
-                o.absolute_tolerance,
-            )
+            if range_matches_reference:
+                if search_orientation in {"row", "rows", "horizontal"} and series["orientation"] == "column":
+                    self.fail(
+                        "\n\nHint:\n"
+                        + self.wrapper.fill(
+                            "`kwargs['search_orientation']` is set to row-only,"
+                            " but the reference `entries` define a column series."
+                            + (o.hint and f"  {o.hint}" or "")
+                        )
+                    )
+                if search_orientation in {"column", "columns", "col", "vertical"} and series["orientation"] == "row":
+                    self.fail(
+                        "\n\nHint:\n"
+                        + self.wrapper.fill(
+                            "`kwargs['search_orientation']` is set to column-only,"
+                            " but the reference `entries` define a row series."
+                            + (o.hint and f"  {o.hint}" or "")
+                        )
+                    )
 
-            if exact_match is None:
-                best_match = find_best_series_window(
+                sub_series = extract_series_from_range(sub_sheet, start_cell, end_cell)
+                ratio = _series_ratio(
+                    sub_series["values"],
+                    series["values"],
+                    o.relative_tolerance,
+                    o.absolute_tolerance,
+                )
+
+                self.assertGreaterEqual(
+                    ratio,
+                    o.ratio,
+                    msg=(
+                        "\n\nHint:\n"
+                        + self.wrapper.fill(
+                            f"Data series in `{start_cell}:{end_cell}` on sheet `{sheet}`"
+                            " did not meet the expected match ratio"
+                            f" ({ratio:.2f} < {o.ratio:.2f})."
+                            + (o.hint and f"  {o.hint}" or "")
+                        )
+                    ),
+                )
+
+                if require_formulas:
+                    sub_sheet_formulas = load_sheet(sub_file, sheet, data_only=False)
+                    for row, col in _iter_series_coordinates(series):
+                        with self.subTest(row=row, column=col):
+                            cell = sub_sheet_formulas.cell(row, col)
+                            is_formula = isinstance(cell.value, str) and cell.value.startswith("=")
+                            self.assertTrue(
+                                is_formula,
+                                msg=(
+                                    "\n\nHint:\n"
+                                    + self.wrapper.fill(
+                                        f"Cell `{cell.coordinate}` on sheet `{sheet}`"
+                                        " must contain a formula."
+                                        + (o.hint and f"  {o.hint}" or "")
+                                    )
+                                ),
+                            )
+            else:
+                exact_match = find_exact_series_window(
                     sub_sheet,
                     series["values"],
                     search_orientation,
@@ -101,47 +192,78 @@ def build(the_options):
                     o.absolute_tolerance,
                 )
 
-                if best_match is None:
-                    self.fail(
-                        "\n\nHint:\n"
-                        + self.wrapper.fill(
-                            "Could not find any candidate location for the"
-                            f" series from `{series['start_cell']}:{series['end_cell']}`"
-                            f" on sheet `{sheet}`."
-                            + (o.hint and f"  {o.hint}" or "")
+                if exact_match is None:
+                    best_match = find_best_series_window(
+                        sub_sheet,
+                        series["values"],
+                        search_orientation,
+                        o.relative_tolerance,
+                        o.absolute_tolerance,
+                    )
+
+                    if best_match is None:
+                        self.fail(
+                            "\n\nHint:\n"
+                            + self.wrapper.fill(
+                                "Could not find any candidate location for the"
+                                f" series from `{series['start_cell']}:{series['end_cell']}`"
+                                f" on sheet `{sheet}`."
+                                + (o.hint and f"  {o.hint}" or "")
+                            )
                         )
-                    )
 
-                self.fail(
-                    "\n\nHint:\n"
-                    + self.wrapper.fill(
-                        f"No exact data series match was found for"
-                        f" `{series['start_cell']}:{series['end_cell']}` on sheet `{sheet}`."
-                        " Best candidate was"
-                        f" `{best_match['start_cell']}:{best_match['end_cell']}`"
-                        f" ({best_match['orientation']}) with"
-                        f" ratio {best_match['ratio']:.2f}."
-                        + (o.hint and f"  {o.hint}" or "")
-                    )
-                )
-
-            if require_formulas:
-                sub_sheet_formulas = load_sheet(sub_file, sheet, data_only=False)
-                for row, col in _iter_series_coordinates(exact_match):
-                    with self.subTest(row=row, column=col):
-                        cell = sub_sheet_formulas.cell(row, col)
-                        is_formula = isinstance(cell.value, str) and cell.value.startswith("=")
-                        self.assertTrue(
-                            is_formula,
+                    if o.ratio < 1.0:
+                        self.assertGreaterEqual(
+                            best_match["ratio"],
+                            o.ratio,
                             msg=(
                                 "\n\nHint:\n"
                                 + self.wrapper.fill(
-                                    f"Matched series cell `{cell.coordinate}` on sheet `{sheet}`"
-                                    " is not a formula cell."
+                                    f"Could not find data series from `{series['start_cell']}:{series['end_cell']}`"
+                                    f" on sheet `{sheet}` with at least {o.ratio:.2f} match ratio."
+                                    " Best match was"
+                                    f" `{best_match['start_cell']}:{best_match['end_cell']}`"
+                                    f" ({best_match['orientation']}) with"
+                                    f" ratio {best_match['ratio']:.2f}."
                                     + (o.hint and f"  {o.hint}" or "")
                                 )
                             ),
                         )
+                        matched_window = best_match
+                    else:
+                        self.fail(
+                            "\n\nHint:\n"
+                            + self.wrapper.fill(
+                                f"No exact data series match was found for"
+                                f" `{series['start_cell']}:{series['end_cell']}` on sheet `{sheet}`."
+                                " Best candidate was"
+                                f" `{best_match['start_cell']}:{best_match['end_cell']}`"
+                                f" ({best_match['orientation']}) with"
+                                f" ratio {best_match['ratio']:.2f}."
+                                + (o.hint and f"  {o.hint}" or "")
+                            )
+                        )
+
+                else:
+                    matched_window = exact_match
+
+                if require_formulas:
+                    sub_sheet_formulas = load_sheet(sub_file, sheet, data_only=False)
+                    for row, col in _iter_series_coordinates(matched_window):
+                        with self.subTest(row=row, column=col):
+                            cell = sub_sheet_formulas.cell(row, col)
+                            is_formula = isinstance(cell.value, str) and cell.value.startswith("=")
+                            self.assertTrue(
+                                is_formula,
+                                msg=(
+                                    "\n\nHint:\n"
+                                    + self.wrapper.fill(
+                                        f"Matched series cell `{cell.coordinate}` on sheet `{sheet}`"
+                                        " is not a formula cell."
+                                        + (o.hint and f"  {o.hint}" or "")
+                                    )
+                                ),
+                            )
 
             self.set_score(self, o.weight)
 

@@ -7,7 +7,7 @@ from generic_grader.excel.formulas_match_reference import build
 from generic_grader.utils.options import Options
 
 
-def write_workbook(path, sheet_name="Sheet", cells=None):
+def write_workbook(path, sheet_name="Sheet1", cells=None):
     workbook = Workbook()
     worksheet = workbook.active
     worksheet.title = sheet_name
@@ -22,7 +22,6 @@ def built_class():
         Options(
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
-            sheet="Sheet1",
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -45,14 +44,31 @@ def test_instance_has_test_method(built_instance):
     assert hasattr(built_instance, "test_formulas_match_reference_0")
 
 
-def test_doc_func(built_instance):
+def test_doc_func_same_range_default(built_instance):
     assert (
         built_instance.test_formulas_match_reference_0.__doc__
-        == "Check that formulas in range A1:B1 on sheet `Sheet` exactly match the reference formulas."
+        == "Check that formulas in range A1:B1 on sheet `<first worksheet>` exactly match the reference formulas."
     )
 
 
-def test_passing_case(fix_syspath):
+def test_doc_func_search_mode():
+    built_class = build(
+        Options(
+            required_files=("submission.xlsx",),
+            entries=("A1", "B1"),
+            range_matches_reference=False,
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class()
+
+    assert (
+        built_instance.test_formulas_match_reference_0.__doc__
+        == "Check that formulas in range A1:B1 on sheet `<first worksheet>` match the reference formulas in a same-sized region somewhere in the submission workbook."
+    )
+
+
+def test_passing_same_range_case(fix_syspath):
     write_workbook(
         fix_syspath / "reference.xlsx",
         cells={"A1": "=A3+B3", "B1": "=A4+B4"},
@@ -67,7 +83,6 @@ def test_passing_case(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
-            sheet="Sheet1",
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -78,7 +93,7 @@ def test_passing_case(fix_syspath):
     assert test_method.__score__ == test_method.__weight__
 
 
-def test_failing_case(fix_syspath):
+def test_failing_same_range_case(fix_syspath):
     write_workbook(
         fix_syspath / "reference.xlsx",
         cells={"A1": "=A3+B3", "B1": "=A4+B4"},
@@ -93,7 +108,6 @@ def test_failing_case(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
-            sheet="Sheet1",
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -107,25 +121,79 @@ def test_failing_case(fix_syspath):
     assert test_method.__score__ == 0
 
 
-def test_passing_case_with_ref_and_sub_modules(fix_syspath):
-    tests_dir = fix_syspath / "tests"
-    tests_dir.mkdir()
-
+def test_passing_search_whole_sheet_case(fix_syspath):
     write_workbook(
-        tests_dir / "ex1_pre_0_reference.xlsx",
-        cells={"F16": "=A1+B1", "F17": "=A2+B2", "F18": "=A3+B3"},
+        fix_syspath / "reference.xlsx",
+        cells={"A1": "=A3+B3", "B1": "=A4+B4"},
     )
     write_workbook(
-        fix_syspath / "ex1_pre_0.xlsx",
-        cells={"F16": "=A1+B1", "F17": "=A2+B2", "F18": "=A3+B3"},
+        fix_syspath / "submission.xlsx",
+        cells={"D6": "=A3+B3", "E6": "=A4+B4"},
     )
 
     built_class = build(
         Options(
             weight=1,
-            ref_module="tests.ex1_pre_0_reference",
-            sub_module="ex1_pre_0",
-            entries=("F16", "F18"),
+            required_files=("submission.xlsx",),
+            entries=("A1", "B1"),
+            range_matches_reference=False,
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_failing_search_whole_sheet_case(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        cells={"A1": "=A3+B3", "B1": "=A4+B4"},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"D6": "=A3+B3", "E6": "=A4-B4"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "B1"),
+            range_matches_reference=False,
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+
+    with pytest.raises(AssertionError) as exc_info:
+        test_method()
+
+    assert "Could not find a" in str(exc_info.value)
+    assert test_method.__score__ == 0
+
+
+def test_first_worksheet_default_sheet_fallback(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        sheet_name="Grades",
+        cells={"A1": "=A3+B3", "B1": "=A4+B4"},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        sheet_name="Grades",
+        cells={"A1": "=A3+B3", "B1": "=A4+B4"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "B1"),
+            kwargs={"reference_file": "reference.xlsx"},
         )
     )
     built_instance = built_class(methodName="test_formulas_match_reference_0")

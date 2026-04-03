@@ -22,7 +22,6 @@ def built_class():
         Options(
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
-            sheet="Sheet1",
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -45,20 +44,19 @@ def test_instance_has_test_method(built_instance):
     assert hasattr(built_instance, "test_data_series_match_reference_0")
 
 
-def test_doc_func(built_instance):
+def test_doc_func_same_range_default(built_instance):
     assert (
         built_instance.test_data_series_match_reference_0.__doc__
-        == "Check that the data series in range A2:A5 on sheet `Sheet1` exactly matches somewhere in the submission workbook."
+        == "Check that the data series in range A2:A5 on sheet `<first worksheet>` exactly matches the reference values at the same cell locations."
     )
 
 
-def test_doc_func_with_formula_requirement():
+def test_doc_func_search_mode():
     built_class = build(
         Options(
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
-            sheet="Sheet1",
-            series_require_formulas=True,
+            range_matches_reference=False,
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -66,11 +64,64 @@ def test_doc_func_with_formula_requirement():
 
     assert (
         built_instance.test_data_series_match_reference_0.__doc__
-        == "Check that the data series in range A2:A5 on sheet `Sheet1` exactly matches somewhere in the submission workbook and uses formulas."
+        == "Check that the data series in range A2:A5 on sheet `<first worksheet>` exactly matches somewhere in the submission workbook."
     )
 
 
-def test_passing_relocated_column_case(fix_syspath):
+def test_passing_same_range_case(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A2", "A5"),
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_data_series_match_reference_0")
+    test_method = built_instance.test_data_series_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_failing_same_range_case(fix_syspath):
+    write_workbook(
+        fix_syspath / "reference.xlsx",
+        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
+    )
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"A2": 10, "A3": 20, "A4": 999, "A5": 40},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A2", "A5"),
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_data_series_match_reference_0")
+    test_method = built_instance.test_data_series_match_reference_0
+
+    with pytest.raises(AssertionError) as exc_info:
+        test_method()
+
+    assert "did not meet the expected" in str(exc_info.value)
+    assert test_method.__score__ == 0
+
+
+def test_passing_search_mode_relocated_case(fix_syspath):
     write_workbook(
         fix_syspath / "reference.xlsx",
         cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
@@ -85,7 +136,7 @@ def test_passing_relocated_column_case(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
-            sheet="Sheet1",
+            range_matches_reference=False,
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -96,22 +147,23 @@ def test_passing_relocated_column_case(fix_syspath):
     assert test_method.__score__ == test_method.__weight__
 
 
-def test_passing_transposed_orientation_case(fix_syspath):
+def test_passing_search_mode_ratio_case(fix_syspath):
     write_workbook(
         fix_syspath / "reference.xlsx",
-        cells={"A2": 1, "A3": 2, "A4": 3, "A5": 4},
+        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
     )
     write_workbook(
         fix_syspath / "submission.xlsx",
-        cells={"B6": 1, "C6": 2, "D6": 3, "E6": 4},
+        cells={"D2": 10, "D3": 20, "D4": 999, "D5": 40},
     )
 
     built_class = build(
         Options(
             weight=1,
+            ratio=0.75,
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
-            sheet="Sheet1",
+            range_matches_reference=False,
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -122,34 +174,7 @@ def test_passing_transposed_orientation_case(fix_syspath):
     assert test_method.__score__ == test_method.__weight__
 
 
-def test_passing_numeric_tolerance_case(fix_syspath):
-    write_workbook(
-        fix_syspath / "reference.xlsx",
-        cells={"A2": 1.0, "A3": 2.0, "A4": 3.0, "A5": 4.0},
-    )
-    write_workbook(
-        fix_syspath / "submission.xlsx",
-        cells={"C2": 1.0, "C3": 2.0, "C4": 3.0000001, "C5": 4.0},
-    )
-
-    built_class = build(
-        Options(
-            weight=1,
-            relative_tolerance=1e-6,
-            required_files=("submission.xlsx",),
-            entries=("A2", "A5"),
-            sheet="Sheet1",
-            kwargs={"reference_file": "reference.xlsx"},
-        )
-    )
-    built_instance = built_class(methodName="test_data_series_match_reference_0")
-    test_method = built_instance.test_data_series_match_reference_0
-    test_method()
-
-    assert test_method.__score__ == test_method.__weight__
-
-
-def test_failing_case(fix_syspath):
+def test_failing_search_mode_exact_case(fix_syspath):
     write_workbook(
         fix_syspath / "reference.xlsx",
         cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
@@ -164,7 +189,7 @@ def test_failing_case(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
-            sheet="Sheet1",
+            range_matches_reference=False,
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
@@ -178,27 +203,24 @@ def test_failing_case(fix_syspath):
     assert test_method.__score__ == 0
 
 
-def test_passing_formula_required_case(fix_syspath):
+def test_first_worksheet_default_sheet_fallback(fix_syspath):
     write_workbook(
         fix_syspath / "reference.xlsx",
-        cells={"A2": "=1+9", "A3": "=10+10", "A4": "=10+20", "A5": "=20+20"},
+        sheet_name="Grades",
+        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
     )
     write_workbook(
         fix_syspath / "submission.xlsx",
-        cells={"D2": "=1+9", "D3": "=10+10", "D4": "=10+20", "D5": "=20+20"},
+        sheet_name="Grades",
+        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
     )
 
     built_class = build(
         Options(
             weight=1,
-            series_require_formulas=True,
             required_files=("submission.xlsx",),
             entries=("A2", "A5"),
-            sheet="Sheet1",
-            kwargs={
-                "reference_file": "reference.xlsx",
-                "search_orientation": "column",
-            },
+            kwargs={"reference_file": "reference.xlsx"},
         )
     )
     built_instance = built_class(methodName="test_data_series_match_reference_0")
@@ -206,36 +228,3 @@ def test_passing_formula_required_case(fix_syspath):
     test_method()
 
     assert test_method.__score__ == test_method.__weight__
-
-
-def test_failing_formula_required_case(fix_syspath):
-    write_workbook(
-        fix_syspath / "reference.xlsx",
-        cells={"A2": 10, "A3": 20, "A4": 30, "A5": 40},
-    )
-    write_workbook(
-        fix_syspath / "submission.xlsx",
-        cells={"D2": 10, "D3": 20, "D4": 30, "D5": 40},
-    )
-
-    built_class = build(
-        Options(
-            weight=1,
-            series_require_formulas=True,
-            required_files=("submission.xlsx",),
-            entries=("A2", "A5"),
-            sheet="Sheet1",
-            kwargs={
-                "reference_file": "reference.xlsx",
-                "search_orientation": "column",
-            },
-        )
-    )
-    built_instance = built_class(methodName="test_data_series_match_reference_0")
-    test_method = built_instance.test_data_series_match_reference_0
-
-    with pytest.raises(AssertionError) as exc_info:
-        test_method()
-
-    assert "not a formula cell" in str(exc_info.value)
-    assert test_method.__score__ == 0

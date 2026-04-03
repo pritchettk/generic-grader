@@ -54,6 +54,17 @@ pip install generic-grader
    python -m unittest tests/config.py
    ```
 
+### Excel check notes
+
+- Excel checks use the workbook's first worksheet by default.
+- Set `sheet="..."` (or `kwargs={"sheet": "..."}`) to target a specific sheet.
+- `data_series_match_reference` is the canonical data-series check. Use
+   `range_matches_reference=True` for same-cell comparison, or
+   `range_matches_reference=False` to search the selected worksheet.
+- `formulas_exist` and `formulas_match_reference` also support
+   `range_matches_reference=False` to search the selected worksheet for a
+   same-sized matching region.
+
 
 ## Contributing
 
