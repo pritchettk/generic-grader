@@ -107,7 +107,7 @@ def test_missing_student_file(fix_syspath):
 
 
 def test_init(fix_syspath, capsys):
-    """Test that the init function is called."""
+    """Test that the init function is called twice, once before each run."""
     ref_file = fix_syspath / "ref_test.py"
     ref_file.write_text("def main():\n    print('Hello World!')")
     sub_file = fix_syspath / "sub_test.py"
@@ -126,4 +126,4 @@ def test_init(fix_syspath, capsys):
     ft = FakeTest()
     ft.test(o)
     captured = capsys.readouterr()
-    assert captured.out == "init\n"
+    assert captured.out == "init\ninit\n"
