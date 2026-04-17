@@ -22,16 +22,16 @@ def reference_test(func):
     def wrapper(self, options):
         o = options
 
-        # Run an optional initialization function.
-        if o.init:
-            o.init(self, o)
-
         # Make sure the expected output files don't already exist.
         for filename in o.filenames:
             try:
                 os.remove(filename)
             except FileNotFoundError:
                 pass
+
+        # Run an optional initialization function.
+        if o.init:
+            o.init(self, o)
 
         # Create the reference user.
         self.ref_user = RefUser(self, options=o)
@@ -49,6 +49,10 @@ def reference_test(func):
                 raise RefFileNotFoundError(filename)
 
         sub_o = evolve(o, log_limit=log_limit)
+
+        # Run an optional initialization function.
+        if sub_o.init:
+            sub_o.init(self, sub_o)
 
         # Create the student user.
         self.student_user = SubUser(self, options=sub_o)
