@@ -96,8 +96,8 @@ def build(the_options):
             if errors:
                 self.fail("\n\nHint:\n" + self.wrapper.fill("  ".join(errors)))
             print("Found all required files:")
-            for file_pattern in o.required_files:
-                print(f"  - {file_pattern}")
+            for file in files:
+                print(f"  - {file}")
             self.set_score(self, o.weight)  # Full credit.
 
     return TestFilePresence
