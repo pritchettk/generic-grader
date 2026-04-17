@@ -80,7 +80,7 @@ error_cases = [
         # Tests the except block on line 65
         "module": "fake_module",
         "error": ModuleNotFoundError,
-        "message": "\n  Unable to import `fake_module`.\n\nHint:\n  Make sure you have submitted a file named `fake_module.py and it\n  contains the definition of `fake_obj`.",
+        "message": "\n  Unable to import `fake_module`.\n\nHint:\n  Make sure you have submitted a file named `fake_module.py` and it\n  contains the definition of `fake_obj`.",
         "object": "fake_obj",
     },
     {  # Test quit_error
@@ -133,3 +133,15 @@ def test_error_message(fix_syspath, case):
     with pytest.raises(Exception) as exc_info:
         Importer.import_obj(test, case["module"], Options(obj_name=case["object"]))
     assert case["message"] in str(exc_info.value)
+
+
+def test_matlab_missing_module_uses_m_extension_in_hint(fix_syspath):
+    test = FakeTest()
+    with pytest.raises(ModuleNotFoundError) as exc_info:
+        Importer.import_obj(
+            test,
+            "missing_matlab",
+            Options(language="matlab", obj_name="main"),
+        )
+    message = str(exc_info.value)
+    assert "missing_matlab.m" in message

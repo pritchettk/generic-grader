@@ -38,6 +38,13 @@ def test_output_values_match_reference_has_test_method(built_instance):
     assert hasattr(built_instance, "test_output_values_match_reference_0")
 
 
+def test_output_values_match_reference_marks_merge_subtests(built_class):
+    """Test that output value checks opt in to merged subtests."""
+    test_method = getattr(built_class, "test_output_values_match_reference_0")
+    assert hasattr(test_method, "__merge_subtests__")
+    assert test_method.__merge_subtests__ is True
+
+
 # Cases Tested:
 # Passing cases:
 #   1. All values match
@@ -220,6 +227,41 @@ cases = [
             "Check that the 3rd value on output line 3 from your `main`"
             " function when called as `main()` with entries=('10', '20')"
             " match the reference values."
+        ),
+    },
+    {  # Multi-line values all match
+        "submission": "def main():\n    print('1,2,3')\n    print('4,5,6')",
+        "reference": "def main():\n    print('1,2,3')\n    print('4,5,6')",
+        "result": "pass",
+        "score": 1,
+        "options": Options(
+            obj_name="main",
+            sub_module="submission",
+            ref_module="reference",
+            weight=1,
+            line_ns=(1, 2),
+        ),
+        "doc_func_test_string": (
+            "Check that the values on output lines 1 and 2 from your `main` function"
+            " when called as `main()` match the reference values."
+        ),
+    },
+    {  # Multi-line values with one mismatch
+        "submission": "def main():\n    print('1,2,3')\n    print('4,5,7')",
+        "reference": "def main():\n    print('1,2,3')\n    print('4,5,6')",
+        "result": AssertionError,
+        "score": 0,
+        "options": Options(
+            obj_name="main",
+            sub_module="submission",
+            ref_module="reference",
+            weight=1,
+            line_ns=(1, 2),
+        ),
+        "message": "Your output values did not match the expected values.",
+        "doc_func_test_string": (
+            "Check that the values on output lines 1 and 2 from your `main` function"
+            " when called as `main()` match the reference values."
         ),
     },
 ]

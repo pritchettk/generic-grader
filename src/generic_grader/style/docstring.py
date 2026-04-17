@@ -9,6 +9,7 @@ from parameterized import parameterized
 
 from generic_grader.utils.decorators import weighted
 from generic_grader.utils.docs import get_wrapper
+from generic_grader.utils.language_support import require_language_support
 from generic_grader.utils.options import options_to_params
 from generic_grader.utils.safe_equal import safe_assert_equal
 
@@ -57,6 +58,7 @@ def build(the_options):
     reference = the_options.ref_module.replace(".", os.path.sep) + ".py"
 
     the_params = options_to_params(the_options)
+    runtime_options = the_params[0].args[0]
 
     class TestDocstring(unittest.TestCase):
         """A class for docstring tests."""
@@ -64,6 +66,12 @@ def build(the_options):
         wrapper = get_wrapper()
 
         def set_up(self):
+            require_language_support(
+                self,
+                runtime_options,
+                ("python",),
+                "Docstring checks",
+            )
             with open(submission) as fo:
                 fail_msg = None
                 try:

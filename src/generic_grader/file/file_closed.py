@@ -8,6 +8,7 @@ from parameterized import parameterized
 
 from generic_grader.utils.decorators import weighted
 from generic_grader.utils.docs import get_wrapper, make_call_str, oxford_list
+from generic_grader.utils.language_support import require_language_support
 from generic_grader.utils.options import options_to_params
 from generic_grader.utils.reference_test import reference_test
 
@@ -58,6 +59,7 @@ def build(the_options):
             ResouceWarning is raised.
             """
             o = options
+            require_language_support(self, o, ("python",), "File closed checks")
 
             # Build a list of unclosed files (ResourceWarnings).
             unclosed_files = []
