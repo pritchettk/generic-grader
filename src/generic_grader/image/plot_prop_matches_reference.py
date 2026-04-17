@@ -10,6 +10,7 @@ from rapidfuzz.distance.Levenshtein import normalized_similarity
 
 from generic_grader.utils.decorators import weighted
 from generic_grader.utils.docs import get_wrapper, make_call_str
+from generic_grader.utils.language_support import require_language_support
 from generic_grader.utils.math_utils import calc_log_limit
 from generic_grader.utils.options import options_to_params
 from generic_grader.utils.plot import get_property
@@ -48,6 +49,12 @@ def build(the_options):
             """Check that the properties of a plot match a reference."""
 
             o = options
+            require_language_support(
+                self,
+                o,
+                ("python",),
+                "Matplotlib property checks",
+            )
 
             # Run an optional initialization function.
             if o.init:

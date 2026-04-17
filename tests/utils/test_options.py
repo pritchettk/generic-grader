@@ -56,8 +56,20 @@ typecheck_options = [
         "error": "`weight` must be of type int | float. Got <class 'str'> instead.",
     },
     {
+        "options": {"language": 1},
+        "error": "`language` must be of type <class 'str'>. Got <class 'int'> instead.",
+    },
+    {
+        "options": {"execution_config": "x"},
+        "error": "`execution_config` must be of type <class 'dict'>. Got <class 'str'> instead.",
+    },
+    {
         "options": {"mode": "unknown"},
         "error": "`mode` must be one of 'exactly', 'less than', 'more than', or 'approximately'.",
+    },
+    {
+        "options": {"language": "octave"},
+        "error": "`language` must be one of 'auto', 'python', or 'matlab'.",
     },
     {
         "options": {"chart_ratio": 1.2},
@@ -144,3 +156,13 @@ def test_duplicate_file_names(case):
     with pytest.raises(ValueError) as exc_info:
         Options(**case["options"])
     assert str(exc_info.value) == case["error"]
+
+
+def test_language_defaults_to_auto():
+    assert Options().language == "auto"
+
+
+def test_valid_matlab_language_and_execution_config():
+    opts = Options(language="matlab", execution_config={"engine": "default"})
+    assert opts.language == "matlab"
+    assert opts.execution_config == {"engine": "default"}

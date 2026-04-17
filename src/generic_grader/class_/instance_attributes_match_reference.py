@@ -7,6 +7,7 @@ import unittest
 from parameterized import parameterized
 
 from generic_grader.utils.decorators import weighted
+from generic_grader.utils.language_support import require_language_support
 from generic_grader.utils.options import options_to_params
 from generic_grader.utils.reference_test import reference_test
 
@@ -41,6 +42,12 @@ def build(the_options):
             """
 
             o = options
+            require_language_support(
+                self,
+                o,
+                ("python",),
+                "Instance attribute checks",
+            )
 
             # Construct the set of default object attributes.
             nul_attrs = set(

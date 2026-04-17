@@ -9,6 +9,7 @@ from parameterized import parameterized
 from generic_grader.utils.decorators import weighted
 from generic_grader.utils.docs import get_wrapper
 from generic_grader.utils.importer import Importer
+from generic_grader.utils.language_support import require_language_support
 from generic_grader.utils.options import options_to_params
 
 
@@ -42,6 +43,12 @@ def build(the_options):
             """
 
             o = options
+            require_language_support(
+                self,
+                o,
+                ("python",),
+                "Class method signature checks",
+            )
 
             sub_class = Importer.import_obj(self, o.sub_module, o)
             sub_funcs = dict(inspect.getmembers(sub_class, inspect.isfunction))

@@ -1,12 +1,12 @@
 """Provide a mock user for code under test."""
 
 import re
-from copy import deepcopy
 from io import StringIO
 
 from attrs import evolve
 
 from generic_grader.utils.docs import get_wrapper, make_call_str, ordinalize
+from generic_grader.utils.execution_backend import get_execution_backend
 from generic_grader.utils.exceptions import (
     EndOfInputError,
     ExtraEntriesError,
@@ -17,7 +17,6 @@ from generic_grader.utils.exceptions import (
 )
 from generic_grader.utils.importer import Importer
 from generic_grader.utils.options import Options
-from generic_grader.utils.patches import custom_stack
 
 
 class __User__:
@@ -62,6 +61,7 @@ class __User__:
 
         # Import the test modules obj_name object.
         self.obj = Importer.import_obj(test, self.module, self.options)
+        self.backend = get_execution_backend(self.options)
         self.returned_values = None
 
         self.patches = [
@@ -248,9 +248,8 @@ class __User__:
         )
         try:
             stack_o = evolve(o, patches=self.patches)
-            with custom_stack(stack_o):
-                # Call the attached object with copies of r args and kwargs.
-                self.returned_values = self.obj(*deepcopy(o.args), **deepcopy(o.kwargs))
+            # Backend handles invocation details for each supported language.
+            self.returned_values = self.backend.call_object(self.obj, stack_o)
         except Exception as e:
             # TODO This function is going to be refactored
             self.test.failureException = safe_exception_type(type(e))

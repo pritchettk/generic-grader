@@ -8,6 +8,7 @@ from parameterized import parameterized
 
 from generic_grader.utils.decorators import weighted
 from generic_grader.utils.importer import Importer
+from generic_grader.utils.language_support import require_language_support
 from generic_grader.utils.options import options_to_params
 
 
@@ -40,6 +41,7 @@ def build(the_options):
             """
 
             o = options
+            require_language_support(self, o, ("python",), "Class attribute checks")
 
             if o.init:
                 o.init(self, o)

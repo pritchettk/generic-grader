@@ -8,6 +8,7 @@ from parameterized import parameterized
 from generic_grader.utils.decorators import weighted
 from generic_grader.utils.docs import get_wrapper
 from generic_grader.utils.importer import Importer
+from generic_grader.utils.language_support import require_language_support
 from generic_grader.utils.options import options_to_params
 
 
@@ -40,6 +41,7 @@ def build(the_options):
             """Check that sub_module defines the class."""
 
             o = options
+            require_language_support(self, o, ("python",), "Class definition checks")
 
             if o.init:
                 o.init(self, o)

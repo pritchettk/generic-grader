@@ -17,6 +17,8 @@ def options_to_params(options):
 class Options:
     # Base
     weight: int | float = 0
+    language: str = "auto"
+    execution_config: dict = Factory(dict)
     init: Callable | None = None
     ref_module: str = "tests.reference"
     sub_module: str = ""
@@ -37,6 +39,7 @@ class Options:
     start: int = 1
     n_lines: int | None = None
     line_n: int = 1
+    line_ns: tuple = ()
     value_n: int | None = None
     ratio: float = 1.0  # exact match
     log_limit: int = 0
@@ -143,6 +146,8 @@ class Options:
             raise ValueError(
                 "`mode` must be one of 'exactly', 'less than', 'more than', or 'approximately'."
             )
+        if self.language not in ["auto", "python", "matlab"]:
+            raise ValueError("`language` must be one of 'auto', 'python', or 'matlab'.")
         if not 0 <= self.chart_ratio <= 1:
             raise ValueError("`chart_ratio` must be between 0 and 1 inclusive.")
         valid_chart_fields = {"title", "x_axis_label", "y_axis_label"}

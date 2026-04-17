@@ -1,8 +1,14 @@
 import os
-import resource
+import _thread
 import signal
 import sys
+import threading
 from contextlib import contextmanager
+
+try:
+    import resource
+except ModuleNotFoundError:  # pragma: no cover - Windows
+    resource = None
 
 from generic_grader.utils.exceptions import UserTimeoutError
 
@@ -13,21 +19,41 @@ def time_limit(seconds):
     Adapted from https://stackoverflow.com/a/601168
     """
 
-    def handler(signum, frame):
-        raise UserTimeoutError(
-            f"The time limit for this test is {seconds}"
-            + ((seconds == 1 and " second.") or " seconds.")
+    def timeout_message():
+        return f"The time limit for this test is {seconds}" + (
+            (seconds == 1 and " second.") or " seconds."
         )
 
-    signal.signal(signal.SIGALRM, handler)
+    def handler(signum, frame):
+        raise UserTimeoutError(timeout_message())
 
-    signal.alarm(seconds)  # Set an alarm to interrupt after seconds seconds.
+    if hasattr(signal, "SIGALRM"):
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+        return
+
+    timed_out = {"hit": False}
+
+    def interrupt_main_thread():
+        timed_out["hit"] = True
+        _thread.interrupt_main()
+
+    timer = threading.Timer(seconds, interrupt_main_thread)
+    timer.daemon = True
+    timer.start()
 
     try:
         yield
+    except KeyboardInterrupt as e:
+        if timed_out["hit"]:
+            raise UserTimeoutError(timeout_message()) from e
+        raise
     finally:
-        # Cancel the alarm.
-        signal.alarm(0)
+        timer.cancel()
 
 
 def _get_current_vm_bytes():
@@ -36,7 +62,11 @@ def _get_current_vm_bytes():
     Reads VmSize from /proc/self/status, which represents the total
     virtual address space used by the process.
     """
-    with open(f"/proc/{os.getpid()}/status") as f:
+    proc_path = f"/proc/{os.getpid()}/status"
+    if not os.path.exists(proc_path):
+        return 0
+
+    with open(proc_path) as f:
         for line in f:
             if line.startswith("VmSize:"):
                 return int(line.split()[1]) * 1024  # kB to bytes
@@ -52,6 +82,11 @@ def memory_limit(max_gibibytes):
     space, regardless of how much memory the Python runtime and its
     libraries already consume.
     """
+    if resource is None or not hasattr(resource, "RLIMIT_AS"):
+        # Windows and some runtimes do not expose address-space limits.
+        yield
+        return
+
     GiB = 2**30
     max_bytes = int(max_gibibytes * GiB)
     current_vm = _get_current_vm_bytes()

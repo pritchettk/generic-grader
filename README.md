@@ -54,6 +54,94 @@ pip install generic-grader
    python -m unittest tests/config.py
    ```
 
+## MATLAB Usage
+
+MATLAB support runs through MATLAB Engine for Python.
+
+### 1. Install MATLAB Engine for Python
+
+From your MATLAB installation, run the engine installer in your grader
+environment. The exact path depends on your MATLAB version, but typically:
+
+``` bash
+cd "<MATLABROOT>/extern/engines/python"
+python -m pip install .
+```
+
+Then verify:
+
+``` bash
+python -c "import matlab.engine; print('ok')"
+```
+
+### 2. Configure Options for MATLAB
+
+- Set `language="matlab"` for explicit MATLAB execution.
+- `language="auto"` is also supported and detects `.m` files.
+- If both `.py` and `.m` are discovered, language detection is ambiguous and
+   the grader requires an explicit `language`.
+
+Example:
+
+``` python
+from generic_grader.function import function_return_values_match_reference
+from generic_grader.output import output_lines_match_reference
+from generic_grader.utils.options import Options
+
+test_01_output = output_lines_match_reference.build(
+      Options(
+            language="matlab",
+            sub_module="submission",
+            ref_module="reference",
+            obj_name="main",
+            weight=1,
+      )
+)
+
+test_02_return = function_return_values_match_reference.build(
+      Options(
+            language="matlab",
+            sub_module="submission",
+            ref_module="reference",
+            obj_name="main",
+            execution_config={"nargout": 1},
+            weight=1,
+      )
+)
+```
+
+### 3. MATLAB source naming rules
+
+- `sub_module` / `ref_module` should point to `.m` file stems
+   (for example, `submission` -> `submission.m`).
+- If `obj_name` also maps to an existing `.m` file, that function name is used.
+- Otherwise, the module stem is used as the MATLAB callable name.
+
+### 4. Current MATLAB limitations
+
+- Interactive input replay (`entries`) is not supported for MATLAB yet.
+- Keyword arguments (`kwargs`) are not supported for MATLAB calls.
+- Python-specific static/style checks are skipped for MATLAB with explicit
+   skip messaging.
+- For return-value checks, set `execution_config={"nargout": <n>}` when
+   you need MATLAB outputs returned to Python for comparison.
+
+### 5. Python-only checks (auto skipped on MATLAB)
+
+The following check families are currently Python-specific and skip when
+`language` resolves to MATLAB:
+
+- `function.static_loop_depth`
+- `function.random_function_calls`
+- `style.comments`
+- `style.docstring`
+- `style.program_length`
+- `class_.*`
+- `file.file_closed`
+- `image.plot_prop_matches_reference`
+
+See MATLAB examples in [docs/example/matlab/config_matlab.py](docs/example/matlab/config_matlab.py).
+
 ### Excel check notes
 
 - Excel checks use the workbook's first worksheet by default.
