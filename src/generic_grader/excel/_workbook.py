@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 
 from openpyxl.utils.cell import range_boundaries
+from rapidfuzz.distance.Levenshtein import normalized_similarity
 
 from generic_grader.utils.options import Options
 
@@ -337,3 +338,114 @@ def resolve_module_workbook(module: str, label: str) -> str:
         )
 
     return existing_paths[0]
+
+
+# ---------------------------------------------------------------------------
+# Semantic header-matching helpers (used by data_table_match_reference)
+# ---------------------------------------------------------------------------
+
+
+def _normalize_header(value) -> str:
+    """Normalize a cell value for fuzzy header comparison (lowercased)."""
+    if value is None:
+        return ""
+    return " ".join(str(value).strip().lower().split())
+
+
+def _normalize_header_strict(value) -> str:
+    """Normalize a cell value for strict header comparison (case-preserved)."""
+    if value is None:
+        return ""
+    return " ".join(str(value).strip().split())
+
+
+def _match_header_mapping(
+    ref_headers: list,
+    sub_headers: list,
+    header_ratio: float,
+    strict_headers: bool,
+    strict_column_order: bool,
+) -> dict | None:
+    """Try to match ref_headers to sub_headers using greedy similarity assignment.
+
+    Returns a dict mapping ref_col_idx -> sub_col_idx, or None if any non-None
+    reference header cannot be matched above *header_ratio*.  When
+    *strict_column_order* is True the mapping must be monotonically increasing
+    (sub indices must increase as ref indices increase).
+    """
+    available = list(range(len(sub_headers)))
+    mapping: dict[int, int] = {}
+
+    for ref_idx, ref_h in enumerate(ref_headers):
+        ref_norm = _normalize_header(ref_h)
+        if not ref_norm:
+            # Skip None / empty reference headers — treat them as don't-care.
+            continue
+
+        best_sub_idx = None
+        best_score = -1.0
+
+        for sub_idx in available:
+            if strict_headers:
+                # Case-sensitive, whitespace-normalised exact match only.
+                ref_s = _normalize_header_strict(ref_h)
+                sub_s = _normalize_header_strict(sub_headers[sub_idx])
+                score = 1.0 if ref_s == sub_s else 0.0
+            else:
+                sub_norm = _normalize_header(sub_headers[sub_idx])
+                score = normalized_similarity(ref_norm, sub_norm) if sub_norm else 0.0
+            if score > best_score:
+                best_score = score
+                best_sub_idx = sub_idx
+
+        if best_sub_idx is None or best_score < header_ratio:
+            return None
+
+        mapping[ref_idx] = best_sub_idx
+        available.remove(best_sub_idx)
+
+    if not mapping:
+        return None
+
+    if strict_column_order:
+        prev = -1
+        for ref_idx in sorted(mapping):
+            if mapping[ref_idx] <= prev:
+                return None
+            prev = mapping[ref_idx]
+
+    return mapping
+
+
+def find_table_by_headers(
+    sheet,
+    ref_headers: list,
+    header_ratio: float,
+    strict_headers: bool,
+    strict_column_order: bool,
+) -> tuple[int, int, dict] | None:
+    """Scan *sheet* for a contiguous row of cells that fuzzy-matches *ref_headers*.
+
+    Returns ``(header_row_1based, col_start_1based, col_mapping)`` where
+    *col_mapping* is a dict ``{ref_col_idx: sub_col_idx}`` (both 0-based
+    relative to the scanned block).  Returns ``None`` if no match is found.
+    """
+    n = len(ref_headers)
+    if n == 0:
+        return None
+
+    max_row = sheet.max_row
+    max_col = sheet.max_column
+    if max_col < n:
+        return None
+
+    for row in range(1, max_row + 1):
+        for col_start in range(1, max_col - n + 2):
+            candidate = [sheet.cell(row, col_start + i).value for i in range(n)]
+            mapping = _match_header_mapping(
+                ref_headers, candidate, header_ratio, strict_headers, strict_column_order
+            )
+            if mapping is not None:
+                return row, col_start, mapping
+
+    return None

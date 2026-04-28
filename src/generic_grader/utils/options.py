@@ -83,6 +83,18 @@ class Options:
     random_chance_tolerance: int = 9
     # This is the probabilty that we miss a possible outcome, by default it is set to 1 in a billion
 
+    # Excel
+    sheet: str = ""
+    range_matches_reference: bool = True
+    series_require_formulas: bool = False
+    chart_ratio: float = 0.9
+    chart_fields: tuple = ("title", "x_axis_label", "y_axis_label")
+    chart_require_title: bool = False
+    # Semantic data-table matching (used by data_table_match_reference)
+    header_ratio: float = 0.9
+    strict_headers: bool = False
+    strict_column_order: bool = False
+
     def __attrs_post_init__(self):
         """Check that the attributes are of the correct type."""
         annotations = type(self).__annotations__

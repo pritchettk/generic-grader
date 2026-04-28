@@ -142,6 +142,42 @@ def build(the_options):
             )
 
             for ref_chart, sub_chart in matched_charts:
+                # --- structural checks (always enforced) ---
+                with self.subTest(chart=sub_chart.get("chart_file"), field="chart_type"):
+                    ref_types = sorted(ref_chart.get("types", []))
+                    sub_types = sorted(sub_chart.get("types", []))
+                    self.assertEqual(
+                        ref_types,
+                        sub_types,
+                        msg=(
+                            "\n\nHint:\n"
+                            + self.wrapper.fill(
+                                f"Chart `{sub_chart.get('chart_file')}` on sheet"
+                                f" `{o.sheet}` has chart type(s) {sub_types},"
+                                f" but the reference expects {ref_types}."
+                                + (o.hint and f"  {o.hint}" or "")
+                            )
+                        ),
+                    )
+
+                with self.subTest(chart=sub_chart.get("chart_file"), field="series_count"):
+                    ref_count = len(ref_chart.get("series", []))
+                    sub_count = len(sub_chart.get("series", []))
+                    self.assertEqual(
+                        ref_count,
+                        sub_count,
+                        msg=(
+                            "\n\nHint:\n"
+                            + self.wrapper.fill(
+                                f"Chart `{sub_chart.get('chart_file')}` on sheet"
+                                f" `{o.sheet}` has {sub_count} data series,"
+                                f" but the reference expects {ref_count}."
+                                + (o.hint and f"  {o.hint}" or "")
+                            )
+                        ),
+                    )
+
+                # --- metadata checks (controlled by o.chart_fields) ---
                 for field in o.chart_fields:
                     with self.subTest(chart=sub_chart.get("chart_file"), field=field):
                         expected = ref_chart.get(field)
