@@ -3,6 +3,24 @@ from functools import wraps
 from generic_grader.utils.options import Options
 
 
+def merge_subtests(val=True):
+    """Decorator that marks a test method to merge subtests.
+
+    Usage:
+    ```
+    @merge_subtests()
+    def test_func(...):
+        ...
+    ```
+    """
+
+    def decorator(func):
+        func.__merge_subtests__ = bool(val)
+        return func
+
+    return decorator
+
+
 def weighted(func):
     """Decorator that marks a test method as having a parameterized weight.
     The weight attribute of the test method is set when the decorated method is
