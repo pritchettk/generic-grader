@@ -12,6 +12,7 @@ from rapidfuzz.distance.Levenshtein import normalized_similarity
 from generic_grader.utils.options import Options
 
 from openpyxl import load_workbook
+from openpyxl.worksheet.formula import ArrayFormula
 
 NS = {
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
@@ -100,6 +101,44 @@ def read_rect_values(sheet, start_row: int, start_col: int, height: int, width: 
         [sheet.cell(start_row + row, start_col + col).value for col in range(width)]
         for row in range(height)
     ]
+
+
+def get_formula_text(value) -> str | None:
+    """Return a cell value's formula text, or None if there is none to compare.
+
+    Handles both ordinary string formulas (``"=A1+B1"``) and openpyxl's
+    ``ArrayFormula`` objects (returned for array/CSE-entered formulas), so
+    every excel check can ask "is this a formula, and what does it say"
+    through one code path instead of re-deriving the answer per call site.
+
+    Note: ``ArrayFormula.text`` can itself be ``None`` (openpyxl's
+    ``ArrayFormula.__init__`` defaults ``text=None``), so a ``None`` return
+    here does *not* always mean "not a formula" -- use `is_formula_value`
+    for the existence check; use this only for text to compare/display.
+    """
+
+    if isinstance(value, ArrayFormula):
+        return value.text
+
+    if isinstance(value, str) and value.startswith("="):
+        return value
+
+    return None
+
+
+def is_formula_value(value) -> bool:
+    """Return True if *value* is a formula, ordinary or array-entered.
+
+    Any ``ArrayFormula`` instance counts as a formula regardless of whether
+    it carries text -- `get_formula_text` can legitimately return ``None``
+    for an array formula (openpyxl allows ``text=None``), and that must not
+    be misread as "not a formula".
+    """
+
+    if isinstance(value, ArrayFormula):
+        return True
+
+    return get_formula_text(value) is not None
 
 
 def _rels_path_for_source(source_path: str) -> str:

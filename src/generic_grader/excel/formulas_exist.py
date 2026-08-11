@@ -5,6 +5,7 @@ import unittest
 from parameterized import parameterized
 
 from generic_grader.excel._workbook import (
+    is_formula_value,
     iter_rect_windows,
     load_sheet,
     range_shape,
@@ -60,8 +61,7 @@ def build(the_options):
                 for row in sub_sheet[start_cell:end_cell]:
                     for cell in row:
                         with self.subTest(cell=cell):
-                            cell_value = cell.value
-                            has_formula = isinstance(cell_value, str) and cell_value.startswith("=")
+                            has_formula = is_formula_value(cell.value)
 
                             message = (
                                 "\n\nHint:\n"
@@ -79,7 +79,7 @@ def build(the_options):
                 for win_row, win_col in iter_rect_windows(sub_sheet, height, width):
                     candidate = read_rect_values(sub_sheet, win_row, win_col, height, width)
                     all_formulas = all(
-                        isinstance(value, str) and value.startswith("=")
+                        is_formula_value(value)
                         for row_values in candidate
                         for value in row_values
                     )

@@ -12,6 +12,7 @@ from generic_grader.excel._series import (
     find_exact_series_window,
 )
 from generic_grader.excel._workbook import (
+    is_formula_value,
     load_sheet,
     resolve_reference_file,
     resolve_sheet_and_range,
@@ -171,7 +172,7 @@ def build(the_options):
                     for row, col in _iter_series_coordinates(series):
                         with self.subTest(row=row, column=col):
                             cell = sub_sheet_formulas.cell(row, col)
-                            is_formula = isinstance(cell.value, str) and cell.value.startswith("=")
+                            is_formula = is_formula_value(cell.value)
                             self.assertTrue(
                                 is_formula,
                                 msg=(
@@ -252,7 +253,7 @@ def build(the_options):
                     for row, col in _iter_series_coordinates(matched_window):
                         with self.subTest(row=row, column=col):
                             cell = sub_sheet_formulas.cell(row, col)
-                            is_formula = isinstance(cell.value, str) and cell.value.startswith("=")
+                            is_formula = is_formula_value(cell.value)
                             self.assertTrue(
                                 is_formula,
                                 msg=(

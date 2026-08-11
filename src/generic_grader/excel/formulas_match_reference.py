@@ -5,6 +5,7 @@ import unittest
 from parameterized import parameterized
 
 from generic_grader.excel._workbook import (
+    get_formula_text,
     iter_rect_windows,
     load_sheet,
     range_shape,
@@ -16,6 +17,19 @@ from generic_grader.excel._workbook import (
 from generic_grader.utils.decorators import merge_subtests, weighted
 from generic_grader.utils.docs import get_wrapper
 from generic_grader.utils.options import options_to_params
+
+
+def _comparable_value(value):
+    """Return a value's formula text if it is a formula, else the value itself.
+
+    openpyxl's ``ArrayFormula`` defines no ``__eq__``, so two array formulas
+    with identical text otherwise never compare equal; comparing formula
+    *text* (for both ordinary and array formulas) instead of the raw value
+    fixes that while leaving non-formula values compared as before.
+    """
+
+    formula_text = get_formula_text(value)
+    return formula_text if formula_text is not None else value
 
 
 def doc_func(func, num, param):
@@ -74,17 +88,24 @@ def build(the_options):
                                     + (o.hint and f"  {o.hint}" or "")
                                 )
                             )
-                            self.assertEqual(ref_cell.value, sub_cell.value, msg=message)
+                            self.assertEqual(
+                                _comparable_value(ref_cell.value),
+                                _comparable_value(sub_cell.value),
+                                msg=message,
+                            )
             else:
                 height, width = range_shape(start_cell, end_cell)
                 ref_values = [
-                    [cell.value for cell in row]
+                    [_comparable_value(cell.value) for cell in row]
                     for row in ref_sheet[start_cell:end_cell]
                 ]
 
                 match_found = False
                 for win_row, win_col in iter_rect_windows(sub_sheet, height, width):
-                    candidate_values = read_rect_values(sub_sheet, win_row, win_col, height, width)
+                    candidate_values = [
+                        [_comparable_value(value) for value in row_values]
+                        for row_values in read_rect_values(sub_sheet, win_row, win_col, height, width)
+                    ]
                     if candidate_values == ref_values:
                         match_found = True
                         break

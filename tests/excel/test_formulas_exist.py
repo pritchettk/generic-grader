@@ -2,6 +2,7 @@ import unittest
 
 import pytest
 from openpyxl import Workbook
+from openpyxl.worksheet.formula import ArrayFormula
 
 from generic_grader.excel.formulas_exist import build
 from generic_grader.utils.options import Options
@@ -166,6 +167,129 @@ def test_first_worksheet_default_sheet_fallback(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_exist_0")
+    test_method = built_instance.test_formulas_exist_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+# ---------------------------------------------------------------------------
+# Per-cell formula-detection gate: ordinary formula, array formula, plain
+# value, and empty cell. Array-formula cells hold an openpyxl `ArrayFormula`
+# object rather than a `str`, so a naive `isinstance(value, str)` check
+# reports a legitimate array formula as "not a formula" -- this is the bug
+# these tests pin down.
+# ---------------------------------------------------------------------------
+
+
+def test_ordinary_string_formula_is_detected(fix_syspath):
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"A1": "=1+1"},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_exist_0")
+    test_method = built_instance.test_formulas_exist_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_array_formula_is_detected(fix_syspath):
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Sheet1"
+    worksheet["A1"] = ArrayFormula("A1", "=MODE.MULT(B1:B10)")
+    workbook.save(fix_syspath / "submission.xlsx")
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_exist_0")
+    test_method = built_instance.test_formulas_exist_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_plain_value_is_not_a_formula(fix_syspath):
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={"A1": 42},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_exist_0")
+    test_method = built_instance.test_formulas_exist_0
+
+    with pytest.raises(AssertionError) as exc_info:
+        test_method()
+
+    assert "Cell A1" in str(exc_info.value)
+    assert test_method.__score__ == 0
+
+
+def test_empty_cell_is_not_a_formula(fix_syspath):
+    write_workbook(
+        fix_syspath / "submission.xlsx",
+        cells={},
+    )
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_exist_0")
+    test_method = built_instance.test_formulas_exist_0
+
+    with pytest.raises(AssertionError) as exc_info:
+        test_method()
+
+    assert "Cell A1" in str(exc_info.value)
+    assert test_method.__score__ == 0
+
+
+def test_array_formula_with_no_text_is_still_detected(fix_syspath):
+    """An ArrayFormula with text=None is still a formula, not a plain value.
+
+    openpyxl's ArrayFormula.__init__ defaults text=None (e.g. for non-anchor
+    cells of a multi-cell array range); is_formula_value must not treat that
+    as "not a formula".
+    """
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Sheet1"
+    worksheet["A1"] = ArrayFormula("A1")
+    workbook.save(fix_syspath / "submission.xlsx")
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
         )
     )
     built_instance = built_class(methodName="test_formulas_exist_0")

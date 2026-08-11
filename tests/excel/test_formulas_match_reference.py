@@ -2,6 +2,7 @@ import unittest
 
 import pytest
 from openpyxl import Workbook
+from openpyxl.worksheet.formula import ArrayFormula
 
 from generic_grader.excel.formulas_match_reference import build
 from generic_grader.utils.options import Options
@@ -193,6 +194,125 @@ def test_first_worksheet_default_sheet_fallback(fix_syspath):
             weight=1,
             required_files=("submission.xlsx",),
             entries=("A1", "B1"),
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+# ---------------------------------------------------------------------------
+# Formula-detection/comparison gate: ordinary formula, array formula, plain
+# value, and empty cell. Array formulas are openpyxl `ArrayFormula` objects
+# with no `__eq__`, so two identical array formulas previously never
+# compared equal -- this is the bug these tests pin down.
+# ---------------------------------------------------------------------------
+
+
+def test_ordinary_string_formula_matches(fix_syspath):
+    write_workbook(fix_syspath / "reference.xlsx", cells={"A1": "=1+1"})
+    write_workbook(fix_syspath / "submission.xlsx", cells={"A1": "=1+1"})
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_identical_array_formulas_match(fix_syspath):
+    for name in ("reference.xlsx", "submission.xlsx"):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Sheet1"
+        worksheet["A1"] = ArrayFormula("A1", "=MODE.MULT(B1:B10)")
+        workbook.save(fix_syspath / name)
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_different_array_formulas_do_not_match(fix_syspath):
+    ref_workbook = Workbook()
+    ref_worksheet = ref_workbook.active
+    ref_worksheet.title = "Sheet1"
+    ref_worksheet["A1"] = ArrayFormula("A1", "=MODE.MULT(B1:B10)")
+    ref_workbook.save(fix_syspath / "reference.xlsx")
+
+    sub_workbook = Workbook()
+    sub_worksheet = sub_workbook.active
+    sub_worksheet.title = "Sheet1"
+    sub_worksheet["A1"] = ArrayFormula("A1", "=MODE.MULT(B1:B20)")
+    sub_workbook.save(fix_syspath / "submission.xlsx")
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+
+    with pytest.raises(AssertionError) as exc_info:
+        test_method()
+
+    assert "cell A1" in str(exc_info.value)
+    assert test_method.__score__ == 0
+
+
+def test_matching_plain_values_match(fix_syspath):
+    write_workbook(fix_syspath / "reference.xlsx", cells={"A1": 42})
+    write_workbook(fix_syspath / "submission.xlsx", cells={"A1": 42})
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
+            kwargs={"reference_file": "reference.xlsx"},
+        )
+    )
+    built_instance = built_class(methodName="test_formulas_match_reference_0")
+    test_method = built_instance.test_formulas_match_reference_0
+    test_method()
+
+    assert test_method.__score__ == test_method.__weight__
+
+
+def test_matching_empty_cells_match(fix_syspath):
+    write_workbook(fix_syspath / "reference.xlsx", cells={})
+    write_workbook(fix_syspath / "submission.xlsx", cells={})
+
+    built_class = build(
+        Options(
+            weight=1,
+            required_files=("submission.xlsx",),
+            entries=("A1", "A1"),
             kwargs={"reference_file": "reference.xlsx"},
         )
     )
